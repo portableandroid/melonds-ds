@@ -3,6 +3,33 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(embed-binaries)
 
+# add PORTANDROID options
+if(PORTANDROID)
+    set(distribution_DIR ${CFG_LIBS_DIR})
+    set(import_libs_DIR ${CFG_LIBS_DIR})
+    set(main_entry_source ${CFG_ENTRY_DIR}/emu_${CFG_MODULE_NAME}_main.cpp)
+
+    # add include directories
+    include_directories(${import_libs_DIR}/classicboy/include
+            ${import_libs_DIR}/libBlocksRuntime/include
+            ${import_libs_DIR}/libcpufeatures/include
+            ${import_libs_DIR}/libemu/include
+            ${import_libs_DIR}/libemuRetro/include
+            ${import_libs_DIR}/libfex/include
+            ${import_libs_DIR}/libpng/include
+            ${import_libs_DIR}/libzip/include)
+
+    # added imported libraries
+    add_library(lib_emu STATIC IMPORTED)
+    set_target_properties(lib_emu PROPERTIES IMPORTED_LOCATION
+            ${import_libs_DIR}/libemu/${CFG_BUILD_TYPE}/${ANDROID_ABI}/libemu.a)
+
+    # added imported libraries
+    add_library(lib_emuRetro STATIC IMPORTED)
+    set_target_properties(lib_emuRetro PROPERTIES IMPORTED_LOCATION
+            ${import_libs_DIR}/libemuRetro/${CFG_BUILD_TYPE}/${ANDROID_ABI}/libemuRetro.a)
+endif()
+
 add_library(melondsds_libretro MODULE
     buffer.cpp
     buffer.hpp
@@ -87,6 +114,7 @@ add_library(melondsds_libretro MODULE
     utils.cpp
     utils.hpp
     ../pntr/pntr.c
+    ${main_entry_source}
 )
 
 target_include_directories(melondsds_libretro SYSTEM PUBLIC
@@ -202,7 +230,7 @@ set_target_properties(melondsds_libretro PROPERTIES PREFIX "")
 # Some platforms or compilers don't use the expected suffixes for shared libraries
 if (APPLE)
     set_target_properties(melondsds_libretro PROPERTIES SUFFIX ".dylib")
-elseif(ANDROID)
+elseif(ANDROID AND NOT PORTANDROID)
     set_target_properties(melondsds_libretro PROPERTIES SUFFIX "_android.so")
 elseif (UNIX)
     set_target_properties(melondsds_libretro PROPERTIES SUFFIX ".so")
@@ -232,7 +260,29 @@ target_compile_definitions(melondsds_libretro PUBLIC
     STB_IMAGE_STATIC # To avoid using any dynamically-linked STB implementations
 )
 
-target_link_libraries(melondsds_libretro PUBLIC libretro-common core libretro-assets glm::glm pntr fmt::fmt date)
+if(PORTANDROID)
+    # rename target and change output directory
+    set_target_properties(melondsds_libretro  PROPERTIES OUTPUT_NAME "libcore_${CFG_MODULE_NAME}")
+    set_target_properties(melondsds_libretro
+            PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY
+            "${distribution_DIR}/core_${CFG_MODULE_NAME}/${CFG_BUILD_TYPE}/${ANDROID_ABI}")
+
+    #set target link libraries for PORTANDROID
+    target_link_libraries(melondsds_libretro PRIVATE
+            android
+            log
+            lib_emu
+            lib_emuRetro
+            libretro-common
+            core
+            libretro-assets
+            glm::glm pntr
+            fmt::fmt date
+            )
+else()
+    target_link_libraries(melondsds_libretro PUBLIC libretro-common core libretro-assets glm::glm pntr fmt::fmt date)
+endif()
 
 if (HAVE_NETWORKING)
     target_compile_definitions(melondsds_libretro PUBLIC BUILDING_LIBSLIRP)

@@ -64,7 +64,7 @@ MelonDsDs::CoreState::~CoreState() noexcept {
 retro_system_av_info MelonDsDs::CoreState::GetSystemAvInfo(RenderMode renderer) const noexcept {
     return {
         .geometry = _screenLayout.Geometry(renderer),
-        .timing {
+        .timing = {
             .fps = 32.0f * 1024.0f * 1024.0f / 560190.0f,
             .sample_rate = 32.0f * 1024.0f,
         },
