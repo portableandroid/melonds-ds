@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0),
 and this project roughly adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed a bug where native BIOS images would be used
+  when the core was supposed to fall back to built-in system files.
+- Fixed a bug where GBA SRAM wouldn't be loaded.
+
+## [1.1.1] - 2024-02-29
+
+### Fixed
+
+- Fixed a bug where the core would crash
+  when RetroArch autosaves after a reset.
+
+## [1.1.0] - 2024-02-13
+
+### Added
+
+- Added a subsystem for loading a GBA ROM without save data.
+- Added options to configure the emulated console's starting time.
+  The starting time can be the local time (possibly with an offset) or an absolute time.
+- Added the ability to synchronize the emulated console's time with the host system's time.
+
+### Fixed
+
+- Fixed an issue where some homebrew would be incorrectly detected as DSiWare,
+  resulting in a crash.
+- Fixed an issue where trying to load an NDS ROM and a GBA ROM
+  without GBA save data would fail.
+
+## [1.0.3] - 2024-01-30
+
+### Fixed
+
+- Fixed an issue where most screen gap sizes would not be honored.
+- Fixed an issue where usernames with non-ASCII characters would crash the core
+  or be improperly truncated.
+  Such names are now properly converted to UCS-2 if possible,
+  or else the default username is used instead.
+
 ## [1.0.2] - 2024-01-19
 
 ### Changed

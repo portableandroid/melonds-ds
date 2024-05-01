@@ -93,12 +93,16 @@ namespace MelonDsDs {
         void WriteGbaSave(std::span<const std::byte> savedata, uint32_t writeoffset, uint32_t writelen) noexcept;
         void WriteFirmware(const melonDS::Firmware& firmware, uint32_t writeoffset, uint32_t writelen) noexcept;
         bool UpdateOptionVisibility() noexcept;
+
+        const melonDS::NDS* GetConsole() const noexcept { return Console.get(); }
     private:
         static constexpr auto REGEX_OPTIONS = std::regex_constants::ECMAScript | std::regex_constants::optimize;
         [[gnu::cold]] void ApplyConfig(const CoreConfig& config) noexcept;
         [[gnu::cold]] bool RunDeferredInitialization() noexcept;
+        [[gnu::cold]] void InstallNdsSram() noexcept;
         [[gnu::cold]] void StartConsole();
-        [[gnu::cold]] static void SetConsoleTime(melonDS::NDS& nds) noexcept;
+        [[gnu::cold]] void SetConsoleTime(melonDS::NDS& nds) noexcept;
+        [[gnu::cold]] void SetConsoleTime(melonDS::NDS& nds, local_seconds time) noexcept;
         [[gnu::cold]] void SetUpDirectBoot(melonDS::NDS& nds, const retro::GameInfo& game) noexcept;
         [[gnu::cold]] void UninstallDsiware(melonDS::DSi_NAND::NANDImage& nand) noexcept;
         [[gnu::cold]] static void ExportDsiwareSaveData(
@@ -133,18 +137,21 @@ namespace MelonDsDs {
         std::optional<retro::GameInfo> _ndsInfo = std::nullopt;
         std::optional<retro::GameInfo> _gbaInfo = std::nullopt;
         std::optional<retro::GameInfo> _gbaSaveInfo = std::nullopt;
+        std::optional<sram::SaveManager> _ndsSaveManager = std::nullopt;
         std::optional<sram::SaveManager> _gbaSaveManager = std::nullopt;
         std::optional<int> _timeToGbaFlush = std::nullopt;
         std::optional<int> _timeToFirmwareFlush = std::nullopt;
         mutable std::optional<size_t> _savestateSize = std::nullopt;
+        bool _syncClock = false;
         std::unique_ptr<error::ErrorScreen> _messageScreen = nullptr;
         // TODO: Switch to compile time regular expressions (see https://compile-time.re)
-        std::regex _cheatSyntax { "^\\s*[0-9A-Fa-f]{8}([+\\s]*[0-9A-Fa-f]{8})*$", REGEX_OPTIONS };
+        std::regex _cheatSyntax { "^\\s*[0-9A-Fa-f]{8}([+\\s-]*[0-9A-Fa-f]{8})*$", REGEX_OPTIONS };
         std::regex _tokenSyntax { "[0-9A-Fa-f]{8}", REGEX_OPTIONS };
         // This object is meant to be stored in a placement-new'd byte array,
         // so having this flag lets us detect if the core has been initialized
         // regardless of the state of the underlying resources
         const bool _initialized = true;
+        bool _ndsSramInstalled = false;
         bool _deferredInitializationPending = false;
         uint32_t _flushTaskId = 0;
         NetworkMode _activeNetworkMode = NetworkMode::None;

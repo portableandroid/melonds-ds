@@ -57,6 +57,8 @@ add_library(melondsds_libretro MODULE
     core/core.cpp
     core/core.hpp
     core/tasks.cpp
+    core/test.cpp
+    core/test.hpp
     environment.cpp
     environment.hpp
     exceptions.cpp
@@ -251,6 +253,7 @@ endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/version.hpp")
 
 target_compile_definitions(melondsds_libretro PUBLIC
+    GLM_ENABLE_EXPERIMENTAL
     PNTR_ENABLE_DEFAULT_FONT
     PNTR_ENABLE_FILTER_SMOOTH
     PNTR_ENABLE_TTF

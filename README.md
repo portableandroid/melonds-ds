@@ -3,17 +3,17 @@
 An enhanced remake of the [melonDS][melonds] [core][melonds-libretro] for [libretro][libretro]
 that prioritizes standalone parity, reliability, and usability.
 
-![melonDS DS Latest Release](https://img.shields.io/github/v/release/JesseTG/melonds-ds?style=for-the-badge&&logo=github&label=melonDS%20DS&link=https%3A%2F%2Fgithub.com%2FJesseTG%2Fmelonds-ds%2Freleases%2Flatest)
-![melonDS DS GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/JesseTG/melonds-ds/main.yaml?style=for-the-badge&logo=githubactions&logoColor=white&label=Personal%20Build)
-![melonDS DS Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/jessetg%2Fmelonds-ds?gitlab_url=https%3A%2F%2Fgit.libretro.com&style=for-the-badge&logo=gitlab&label=Libretro%20Build)
+[![melonDS DS Latest Release][melondsds-release-badge]][melondsds-latest-release]
+[![melonDS DS GitHub Actions Workflow Status][melondsds-github-pipeline-badge]][melondsds-github-pipeline]
+[![melonDS DS Gitlab Pipeline Status][melondsds-gitlab-pipeline-badge]][melondsds-gitlab-pipeline]
 
 # Getting melonDS DS
 
-You can get the latest stable release of melonDS DS
-from [this repo's Releases](https://github.com/JesseTG/melonds-ds/releases/latest),
+You can download and install melonDS DS through RetroArch's built-in core downloader where supported.
+If you'd like to try a development build or can't use the core downloader,
+you can get the latest release of melonDS DS
+from [this repo's Releases][melondsds-latest-release],
 or the raw build artifacts from [here][workflows].
-In the near future you'll be able to get it from the official RetroArch build server,
-or even from within RetroArch itself.
 
 # Installation
 
@@ -21,7 +21,10 @@ Installation instructions may vary depending on your chosen libretro frontend.
 
 ## RetroArch
 
-Here's how you can install melonDS DS in [RetroArch][retroarch]:
+You can install melonDS DS through the built-in core downloader where supported.
+If your build of RetroArch doesn't include it (e.g. Steam)
+or if you want to use a development build,
+you can install it [RetroArch][retroarch] manually like so:
 
 1. Place `melondsds_libretro.dll` (or `.so` or `.dylib`, depending on the platform) in RetroArch's `cores` directory.
 2. Place `melondsds_libretro.info` in the same directory as the other `.info` files,
@@ -466,10 +469,13 @@ This project is not affiliated with, developed by, or endorsed by the melonDS te
 [melonds]: https://melonds.kuribo64.net
 [melonds-github]: https://github.com/melonDS-emu
 [melonds-libretro]: https://github.com/libretro/melonDS
+[melondsds-github-pipeline]: https://github.com/JesseTG/melonds-ds/actions
+[melondsds-github-pipeline-badge]: https://img.shields.io/github/actions/workflow/status/JesseTG/melonds-ds/main.yaml?style=for-the-badge&logo=githubactions&logoColor=white&label=Personal%20Build
+[melondsds-gitlab-pipeline]: https://git.libretro.com/libretro/melonds-ds/-/pipelines
+[melondsds-gitlab-pipeline-badge]: https://img.shields.io/gitlab/pipeline-status/jessetg%2Fmelonds-ds?gitlab_url=https%3A%2F%2Fgit.libretro.com&style=for-the-badge&logo=gitlab&label=Libretro%20Build
+[melondsds-release-badge]: https://img.shields.io/github/v/release/JesseTG/melonds-ds?style=for-the-badge&&logo=github&label=melonDS%20DS&link=https%3A%2F%2Fgithub.com%2FJesseTG%2Fmelonds-ds%2Freleases%2Flatest
+[melondsds-latest-release]: https://github.com/JesseTG/melonds-ds/releases/latest
 [issue-tracker]: https://github.com/JesseTG/melonds-ds/issues
 [memory-pak]: https://en.wikipedia.org/wiki/List_of_Nintendo_DS_accessories#Memory_Expansion_Pak
 [solar-sensor]: https://en.wikipedia.org/wiki/List_of_Nintendo_DS_accessories#Solar_Sensors
-[retroachievements]: https://retroachievements.org
-[retroarch-nightly]: https://buildbot.libretro.com/nightly
-[wiimfi]: https://wiimmfi.de
-[workflows]: https://nightly.link/JesseTG/melonds-ds/workflows/main.yaml/main
+[workflows]: https://nightly.link/JesseTG/melonds-ds/workflows/main.yaml/dev
