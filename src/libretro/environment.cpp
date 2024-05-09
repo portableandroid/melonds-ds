@@ -206,10 +206,11 @@ bool retro::set_core_options(const retro_core_options_v2& options) noexcept {
             /* Determine number of values */
             while (true) {
                 if (values[num_values].value) {
+#ifndef PORTANDROID
                     /* Check if this is the default value */
                     if (!default_value.empty() && values[num_values].value == default_value)
                         default_index = num_values;
-
+#endif
                     num_values++;
                 } else
                     break;
