@@ -311,8 +311,11 @@ static melonDS::DSiArgs MelonDsDs::GetDSiArgs(const CoreConfig& config, const re
 
     // TODO: Customize the NAND first, then use the final value of TWLCFG to patch the firmware
     CustomizeFirmware(config, *firmware);
-
+#ifdef PORTANDROID
+    optional<string> nandPath = string(nandName.data());
+#else
     optional<string> nandPath = retro::get_system_path(nandName);
+#endif
     if (!nandPath) {
         throw environment_exception("Failed to get the system directory, which means the NAND image can't be loaded.");
     }
