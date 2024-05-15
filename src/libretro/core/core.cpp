@@ -37,6 +37,9 @@
 #include "../render/render.hpp"
 #include "../retro/task_queue.hpp"
 #include "render/software.hpp"
+#ifdef PORTANDROID
+#include "emu_retro.h"
+#endif
 
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
 #include "../render/opengl.hpp"
@@ -142,6 +145,23 @@ void MelonDsDs::CoreState::Run() noexcept {
         ParseConfig(Config);
         ApplyConfig(Config);
         UpdateConsole(Config, nds);
+#ifdef PORTANDROID
+        if(!retro::get_variable("menuItemToggleLayout").empty()){
+            retro::debug("Toggle screen layout!");
+            _screenLayout.NextLayout();
+            retro::debug("Switched to screen layout {} of {}", _screenLayout.LayoutIndex() + 1, _screenLayout.NumberOfLayouts());
+        }
+        string_view  value = retro::get_variable("menuItemMicInput");
+        if(!value.empty()){
+            if( value == "on") {
+                cb_itf.cb_input_button_state_set(0, CB_INPUT_BUTTON_SL2, cb_true);
+                retro::debug("MIC BUTTON ON");
+            }else{
+                cb_itf.cb_input_button_state_set(0, CB_INPUT_BUTTON_SL2, cb_false);
+                retro::debug("MIC BUTTON OFF");
+            }
+        }
+#endif
     }
 
     if (!_ndsSramInstalled) [[unlikely]] {
