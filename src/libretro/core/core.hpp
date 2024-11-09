@@ -17,11 +17,9 @@
 #ifndef MELONDSDS_CORE_HPP
 #define MELONDSDS_CORE_HPP
 
-#include <array>
 #include <cstddef>
 #include <memory>
 #include <regex>
-#include <span>
 
 #include <NDS.h>
 
@@ -34,10 +32,8 @@
 #include "../screenlayout.hpp"
 #include "../PlatformOGLPrivate.h"
 #include "../sram.hpp"
-
-namespace LAN_PCap {
-    struct AdapterData;
-}
+#include "net/net.hpp"
+#include "std/span.hpp"
 
 struct retro_game_info;
 struct retro_system_av_info;
@@ -49,6 +45,7 @@ namespace retro::task {
 
 namespace melonDS {
     class NDS;
+    struct AdapterData;
 
     namespace DSi_NAND {
         class NANDImage;
@@ -77,15 +74,14 @@ namespace MelonDsDs {
         size_t SerializeSize() const noexcept;
         [[gnu::hot]] bool Serialize(std::span<std::byte> data) const noexcept;
         bool Unserialize(std::span<const std::byte> data) noexcept;
+        void CheatReset() noexcept;
         void CheatSet(unsigned index, bool enabled, std::string_view code) noexcept;
         bool LoadGame(unsigned type, std::span<const retro_game_info> game) noexcept;
         void UnloadGame() noexcept;
         std::byte* GetMemoryData(unsigned id) noexcept;
-        size_t GetMemorySize(unsigned id) noexcept;
+        size_t GetMemorySize(unsigned id) const noexcept;
         void ResetRenderState();
         void DestroyRenderState();
-        bool LanInit() noexcept;
-        void LanDeinit() noexcept;
         int LanSendPacket(std::span<std::byte> data) noexcept;
         int LanRecvPacket(uint8_t* data) noexcept;
 
@@ -95,6 +91,9 @@ namespace MelonDsDs {
         bool UpdateOptionVisibility() noexcept;
 
         const melonDS::NDS* GetConsole() const noexcept { return Console.get(); }
+        const InputState& GetInputState() const noexcept { return _inputState; }
+        std::optional<RenderMode> GetRenderMode() const noexcept { return _renderState.GetRenderMode(); }
+        const ScreenLayoutData& GetScreenLayoutData() const noexcept { return _screenLayout; }
     private:
         static constexpr auto REGEX_OPTIONS = std::regex_constants::ECMAScript | std::regex_constants::optimize;
         [[gnu::cold]] void ApplyConfig(const CoreConfig& config) noexcept;
@@ -116,7 +115,7 @@ namespace MelonDsDs {
         [[gnu::cold]] void RenderErrorScreen() noexcept;
         [[gnu::cold]] void InitContent(unsigned type, std::span<const retro_game_info> game);
 
-        const LAN_PCap::AdapterData* SelectNetworkInterface(const LAN_PCap::AdapterData* adapters, int numAdapters) const noexcept;
+        const melonDS::AdapterData* SelectNetworkInterface(std::span<const melonDS::AdapterData> adapters) const noexcept;
 
         retro::task::TaskSpec PowerStatusUpdateTask() noexcept;
         retro::task::TaskSpec OnScreenDisplayTask() noexcept;
@@ -128,6 +127,7 @@ namespace MelonDsDs {
         [[gnu::cold]] void InitNdsSave(const NdsCart &nds_cart);
 
         std::unique_ptr<melonDS::NDS> Console = nullptr;
+        NetState _netState;
         CoreConfig Config {};
         CoreOptionVisibility _optionVisibility {};
         ScreenLayoutData _screenLayout {};
@@ -154,7 +154,6 @@ namespace MelonDsDs {
         bool _ndsSramInstalled = false;
         bool _deferredInitializationPending = false;
         uint32_t _flushTaskId = 0;
-        NetworkMode _activeNetworkMode = NetworkMode::None;
     };
 }
 #endif //MELONDSDS_CORE_HPP

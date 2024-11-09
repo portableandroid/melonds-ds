@@ -3,6 +3,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(embed-binaries)
 
+if (BUILD_AS_SHARED_LIBRARY)
+    set(LIBRARY_TYPE SHARED)
+else ()
+    set(LIBRARY_TYPE MODULE)
+endif ()
+
 # add PORTANDROID options
 if(PORTANDROID)
     set(distribution_DIR ${CFG_LIBS_DIR})
@@ -30,7 +36,7 @@ if(PORTANDROID)
             ${import_libs_DIR}/libemuRetro/${CFG_BUILD_TYPE}/${ANDROID_ABI}/libemuRetro.a)
 endif()
 
-add_library(melondsds_libretro MODULE
+add_library(melondsds_libretro ${LIBRARY_TYPE}
     buffer.cpp
     buffer.hpp
     config/config.hpp
@@ -78,7 +84,9 @@ add_library(melondsds_libretro MODULE
     message/error.hpp
     microphone.cpp
     microphone.hpp
-    pcap.hpp
+    net/pcap.hpp
+    net/net.cpp
+    net/net.hpp
     platform/file.cpp
     platform/lan.cpp
     platform/mp.cpp
@@ -93,6 +101,8 @@ add_library(melondsds_libretro MODULE
     render/software.hpp
     retro/dirent.cpp
     retro/dirent.hpp
+    retro/file.cpp
+    retro/file.hpp
     retro/http.cpp
     retro/http.hpp
     retro/info.cpp
@@ -113,6 +123,8 @@ add_library(melondsds_libretro MODULE
     sram.cpp
     sram.hpp
     tracy.hpp
+    tracy/client.hpp
+    tracy/opengl.hpp
     utils.cpp
     utils.hpp
     ../pntr/pntr.c
@@ -170,21 +182,34 @@ endif ()
 
 if (HAVE_NETWORKING)
     target_sources(melondsds_libretro PRIVATE
-        ${melonDS_SOURCE_DIR}/src/frontend/qt_sdl/LAN_Socket.cpp
+        ${melonDS_SOURCE_DIR}/src/net/Net_Slirp.cpp
+        ${melonDS_SOURCE_DIR}/src/net/Net_Slirp.h
+        ${melonDS_SOURCE_DIR}/src/net/Net.cpp
+        ${melonDS_SOURCE_DIR}/src/net/Net.h
+        ${melonDS_SOURCE_DIR}/src/net/NetDriver.h
+        ${melonDS_SOURCE_DIR}/src/net/LocalMP.cpp
+        ${melonDS_SOURCE_DIR}/src/net/LocalMP.h
+        ${melonDS_SOURCE_DIR}/src/net/PacketDispatcher.cpp
+        ${melonDS_SOURCE_DIR}/src/net/PacketDispatcher.h
         platform/lan.cpp
     )
 
-    target_include_directories(melondsds_libretro SYSTEM PRIVATE "${melonDS_SOURCE_DIR}/src/frontend/qt_sdl")
+    target_include_directories(melondsds_libretro SYSTEM PRIVATE "${melonDS_SOURCE_DIR}/src/net")
 
     if (HAVE_NETWORKING_DIRECT_MODE)
         target_sources(melondsds_libretro PRIVATE
-            ${melonDS_SOURCE_DIR}/src/frontend/qt_sdl/LAN_PCap.cpp
+            ${melonDS_SOURCE_DIR}/src/net/Net_PCap.cpp
+            ${melonDS_SOURCE_DIR}/src/net/Net_PCap.h
         )
     endif()
 endif ()
 
 if (TRACY_ENABLE)
-    target_sources(melondsds_libretro PRIVATE tracy.cpp)
+    target_sources(melondsds_libretro PRIVATE tracy/memory.cpp)
+
+    if (HAVE_OPENGL OR HAVE_OPENGLES)
+        target_sources(melondsds_libretro PRIVATE tracy/opengl.cpp)
+    endif()
 endif ()
 
 if (HAVE_OPENGL OR HAVE_OPENGLES)
@@ -262,6 +287,9 @@ target_compile_definitions(melondsds_libretro PUBLIC
     PNTR_ENABLE_MATH
     STB_IMAGE_STATIC # To avoid using any dynamically-linked STB implementations
 )
+
+target_compile_definitions(melondsds_libretro PUBLIC MELONDS_GL_HEADER="PlatformOGLPrivate.h")
+target_compile_definitions(core PUBLIC MELONDS_GL_HEADER="PlatformOGLPrivate.h")
 
 if(PORTANDROID)
     # rename target and change output directory

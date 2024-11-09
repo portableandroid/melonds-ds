@@ -30,6 +30,7 @@
 
 #include "../core/core.hpp"
 #include "exceptions.hpp"
+#include "format.hpp"
 #include "screenlayout.hpp"
 #include "tracy.hpp"
 
@@ -92,6 +93,7 @@ constexpr array<unsigned, 18> GetPositionIndexes(MelonDsDs::ScreenLayout layout)
             }
             break;
         case ScreenLayout::HybridTop:
+        case ScreenLayout::FlippedHybridTop:
             for (unsigned i = 0; i < VERTEXES_PER_SCREEN; ++i) {
                 indexes[i] = hybridPositionIndexes[i];
                 indexes[i + VERTEXES_PER_SCREEN] = bottomPositionIndexes[i];
@@ -99,6 +101,7 @@ constexpr array<unsigned, 18> GetPositionIndexes(MelonDsDs::ScreenLayout layout)
             }
             break;
         case ScreenLayout::HybridBottom:
+        case ScreenLayout::FlippedHybridBottom:
             for (unsigned i = 0; i < VERTEXES_PER_SCREEN; ++i) {
                 indexes[i] = hybridPositionIndexes[i];
                 indexes[i + VERTEXES_PER_SCREEN] = topPositionIndexes[i];
@@ -117,6 +120,8 @@ constexpr unsigned GetVertexCount(ScreenLayout layout, MelonDsDs::HybridSideScre
             return 6; // 1 screen, 2 triangles
         case ScreenLayout::HybridTop:
         case ScreenLayout::HybridBottom:
+        case ScreenLayout::FlippedHybridTop:
+        case ScreenLayout::FlippedHybridBottom:
             if (hybridScreen == MelonDsDs::HybridSideScreenDisplay::Both)
                 return 18; // 3 screens, 6 triangles
         [[fallthrough]];
@@ -136,7 +141,7 @@ std::unique_ptr<MelonDsDs::OpenGLRenderState> MelonDsDs::OpenGLRenderState::New(
     try {
         return std::make_unique<OpenGLRenderState>();
     } catch (const opengl_not_initialized_exception& e) {
-        retro::debug("OpenGL context could not be initialized: %s", e.what());
+        retro::debug("OpenGL context could not be initialized: {}", e.what());
         return nullptr;
     }
 }
@@ -146,10 +151,11 @@ MelonDsDs::OpenGLRenderState::OpenGLRenderState() {
     retro::debug(TracyFunction);
     glsm_ctx_params_t params = {};
 
-    // MelonDS DS wants an opengl 3.1 context, so glcore is required for mesa compatibility
-    params.context_type = RETRO_HW_CONTEXT_OPENGL;
+    // MelonDS needs at least OpenGL 3.2 for OpenGL renderer
+    // (it doesn't use the legacy fixed-function pipeline)
+    params.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
     params.major = 3;
-    params.minor = 1;
+    params.minor = 2;
     params.context_reset = HardwareContextReset;
     params.context_destroy = HardwareContextDestroyed;
     params.environ_cb = retro::environment;
@@ -180,9 +186,12 @@ MelonDsDs::OpenGLRenderState::~OpenGLRenderState() noexcept {
 
         glDeleteVertexArrays(1, &vao);
         glDeleteBuffers(1, &vbo);
-
-        melonDS::OpenGL::DeleteShaderProgram(shader.data());
+        glDeleteProgram(_screenProgram);
         glsm_ctl(GLSM_CTL_STATE_UNBIND, nullptr);
+
+#ifdef HAVE_TRACY
+        _tracyCapture = std::nullopt;
+#endif
     }
     glsm_ctl(GLSM_CTL_STATE_CONTEXT_DESTROY, nullptr);
     gl_query_core_context_unset();
@@ -201,16 +210,34 @@ void MelonDsDs::OpenGLRenderState::ContextReset(melonDS::NDS& nds, const CoreCon
     retro::debug(TracyFunction);
 
     // Initialize all OpenGL function pointers
+    retro::debug("Initializing OpenGL function pointers");
     glsm_ctl(GLSM_CTL_STATE_CONTEXT_RESET, nullptr);
     TracyGpuContext; // Must be called AFTER the function pointers are bound!
 
+    const char *vendor   = (const char*)glGetString(GL_VENDOR);
+    const char *rendererName = (const char*)glGetString(GL_RENDERER);
+    const char *version  = (const char*)glGetString(GL_VERSION);
+
+    retro::info("OpenGL version: {}", version);
+    retro::info("OpenGL vendor: {}", vendor);
+    retro::info("OpenGL renderer: {}", rendererName);
+
+    uintptr_t fbo = glsm_get_current_framebuffer();
+    retro_assert(glIsFramebuffer(fbo) == GL_TRUE);
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    retro::debug("Current OpenGL framebuffer: id={}, status={}", fbo, static_cast<FormattedGLEnum>(status));
+
     // Initialize global OpenGL resources (e.g. VAOs) and get config info (e.g. limits)
+    retro::debug("Setting up GL state");
     glsm_ctl(GLSM_CTL_STATE_SETUP, nullptr);
+    retro::debug("Set up GL state");
 
     // Start using global OpenGL structures
     {
         TracyGpuZone("GLSM_CTL_STATE_BIND");
+        retro::debug("Binding GL state");
         glsm_ctl(GLSM_CTL_STATE_BIND, nullptr);
+        retro::debug("Bound GL state");
     }
 
     // HACK: Makes the core resilient to context loss by cleaning up the stale OpenGL renderer
@@ -219,16 +246,30 @@ void MelonDsDs::OpenGLRenderState::ContextReset(melonDS::NDS& nds, const CoreCon
     nds.GPU.GPU3D.SetCurrentRenderer(std::make_unique<melonDS::SoftRenderer>());
     auto renderer = melonDS::GLRenderer::New();
     if (!renderer) {
+        retro::error("Failed to initialize OpenGL renderer!");
         throw opengl_not_initialized_exception();
     }
+    retro::debug("Constructed OpenGL renderer");
     renderer->SetRenderSettings(config.BetterPolygonSplitting(), config.ScaleFactor());
+    retro::debug("Applied OpenGL renderer settings");
     nds.GPU.SetRenderer3D(std::move(renderer));
+    retro::debug("Installed OpenGL renderer");
 
     SetUpCoreOpenGlState(config);
+    retro::debug("Initialized core OpenGL state");
     _contextInitialized = true;
 
     // Stop using OpenGL structures
     glsm_ctl(GLSM_CTL_STATE_UNBIND, nullptr); // Always succeeds
+    retro::debug("Unbound GL state");
+
+#ifdef HAVE_TRACY
+    if (tracy::ProfilerAvailable()) {
+        // If we're using Tracy...
+        retro::debug("Using Tracy, will capture OpenGL calls");
+        _tracyCapture.emplace(_openGlDebugAvailable); // ...then get ready to capture OpenGL calls
+    }
+#endif
 
     retro::debug("OpenGL context reset successfully.");
 }
@@ -247,27 +288,35 @@ void MelonDsDs::OpenGLRenderState::SetUpCoreOpenGlState(const CoreConfig& config
         retro::debug("OpenGL debugging extensions are available");
     }
 
-    if (!melonDS::OpenGL::BuildShaderProgram(embedded_melondsds_vertex_shader, embedded_melondsds_fragment_shader, shader.data(), SHADER_PROGRAM_NAME))
-        throw shader_compilation_failed_exception("Failed to compile melonDS DS shaders.");
+    // TODO: Check gl_check_capability for GL_CAPS_VAO and GL_CAPS_FBO
+
+    bool shaderCompiled = melonDS::OpenGL::CompileVertexFragmentProgram(
+        _screenProgram,
+        embedded_melondsds_vertex_shader,
+        embedded_melondsds_fragment_shader,
+        SHADER_PROGRAM_NAME,
+        {
+            {"vPosition", 0},
+            {"vTexcoord", 1},
+        },
+        {
+            {"oColor", 0},
+        }
+    );
+
+    if (!shaderCompiled)
+        throw shader_compilation_failed_exception("Failed to compile and link melonDS DS screen shader program.");
 
     if (_openGlDebugAvailable) {
-        glObjectLabel(GL_SHADER, shader[0], -1, "melonDS DS Vertex Shader");
-        glObjectLabel(GL_SHADER, shader[1], -1, "melonDS DS Fragment Shader");
-        glObjectLabel(GL_PROGRAM, shader[2], -1, SHADER_PROGRAM_NAME);
+        // TODO: Fall back to glLabelObjectEXT if glObjectLabel isn't available
+        glObjectLabel(GL_PROGRAM, _screenProgram, -1, SHADER_PROGRAM_NAME);
     }
 
-    glBindAttribLocation(shader[2], 0, "vPosition");
-    glBindAttribLocation(shader[2], 1, "vTexcoord");
-    glBindFragDataLocation(shader[2], 0, "oColor");
+    GLuint uConfigBlockIndex = glGetUniformBlockIndex(_screenProgram, "uConfig");
+    glUniformBlockBinding(_screenProgram, uConfigBlockIndex, 16); // TODO: Where does 16 come from? It's not a size.
 
-    if (!melonDS::OpenGL::LinkShaderProgram(shader.data()))
-        throw shader_compilation_failed_exception("Failed to link compiled shaders.");
-
-    GLuint uConfigBlockIndex = glGetUniformBlockIndex(shader[2], "uConfig");
-    glUniformBlockBinding(shader[2], uConfigBlockIndex, 16); // TODO: Where does 16 come from? It's not a size.
-
-    glUseProgram(shader[2]);
-    GLuint uni_id = glGetUniformLocation(shader[2], "ScreenTex");
+    glUseProgram(_screenProgram);
+    GLuint uni_id = glGetUniformLocation(_screenProgram, "ScreenTex");
     glUniform1i(uni_id, 0);
 
     memset(&GL_ShaderConfig, 0, sizeof(GL_ShaderConfig));
@@ -325,8 +374,9 @@ void MelonDsDs::OpenGLRenderState::Render(
 
     glsm_ctl(GLSM_CTL_STATE_BIND, nullptr);
 
+    GLuint current_fbo = glsm_get_current_framebuffer();
     // Tell OpenGL that we want to draw to (and read from) the screen framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, glsm_get_current_framebuffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, current_fbo);
 
     melonDS::GLRenderer& renderer = static_cast<melonDS::GLRenderer&>(nds.GetRenderer3D());
 
@@ -356,7 +406,7 @@ void MelonDsDs::OpenGLRenderState::Render(
     if (unibuf) memcpy(unibuf, &GL_ShaderConfig, sizeof(GL_ShaderConfig));
     glUnmapBuffer(GL_UNIFORM_BUFFER);
 
-    melonDS::OpenGL::UseShaderProgram(shader.data());
+    glUseProgram(_screenProgram);
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_STENCIL_TEST);
@@ -366,7 +416,7 @@ void MelonDsDs::OpenGLRenderState::Render(
 
     glActiveTexture(GL_TEXTURE0);
 
-    renderer.GetCompositor().BindOutputTexture(nds.GPU.FrontBuffer);
+    renderer.BindOutputTexture(nds.GPU.FrontBuffer);
 
     // Set the filtering mode for the active texture
     // For simplicity, we'll just use the same filter for both minification and magnification
@@ -376,11 +426,26 @@ void MelonDsDs::OpenGLRenderState::Render(
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+    if (nds.IsLidClosed()) [[unlikely]] {
+        // If the emulated lid is closed, just draw a blank
+        // so that there's no annoying flickering with some games
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+    else {
+        glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+    }
 
     glFlush();
 
     glsm_ctl(GLSM_CTL_STATE_UNBIND, nullptr);
+
+#ifdef HAVE_TRACY
+    if (_tracyCapture) {
+        // TODO: Expose the FBO that the emulator's GLRenderer uses for rendering, then pass it here
+        _tracyCapture->CaptureFrame(current_fbo, config.ScaleFactor());
+    }
+#endif
 
     retro::video_refresh(
         RETRO_HW_FRAME_BUFFER_VALID,
@@ -399,7 +464,7 @@ void MelonDsDs::OpenGLRenderState::ContextDestroyed() {
     _openGlDebugAvailable = false;
     _needsRefresh = false;
     _contextInitialized = false;
-    shader = {};
+    _screenProgram = 0;
     screen_framebuffer_texture = 0;
     screen_vertices = {};
     vertexCount = 0;
@@ -407,6 +472,12 @@ void MelonDsDs::OpenGLRenderState::ContextDestroyed() {
     vbo = 0;
     GL_ShaderConfig = {};
     ubo = 0;
+    // TODO: Delete these objects, since the context hasn't been destroyed yet
+    // (just in case it's not really destroyed afterwards)
+
+#ifdef HAVE_TRACY
+    _tracyCapture = std::nullopt;
+#endif
 }
 
 void MelonDsDs::OpenGLRenderState::InitFrameState(melonDS::NDS& nds, const CoreConfig& config, const ScreenLayoutData& screenLayout) noexcept {
@@ -499,6 +570,7 @@ void MelonDsDs::OpenGLRenderState::InitVertices(const ScreenLayoutData& screenLa
             }
             break;
         case ScreenLayout::HybridTop:
+        case ScreenLayout::FlippedHybridTop:
             for (unsigned i = 0; i < VERTEXES_PER_SCREEN; ++i) {
                 // Hybrid screen
                 screen_vertices[i] = {
@@ -521,6 +593,7 @@ void MelonDsDs::OpenGLRenderState::InitVertices(const ScreenLayoutData& screenLa
             }
             break;
         case ScreenLayout::HybridBottom:
+        case ScreenLayout::FlippedHybridBottom:
             for (unsigned i = 0; i < VERTEXES_PER_SCREEN; ++i) {
                 // Hybrid screen
                 screen_vertices[i] = {

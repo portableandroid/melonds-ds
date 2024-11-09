@@ -16,6 +16,7 @@
 
 #include "input.hpp"
 
+#include <Platform.h>
 #include "PlatformOGLPrivate.h"
 #include <NDS.h>
 #include <glm/gtx/common.hpp>
@@ -24,6 +25,7 @@
 
 #include "config/config.hpp"
 #include "environment.hpp"
+#include "format.hpp"
 #include "libretro.hpp"
 #include "math.hpp"
 #include "screenlayout.hpp"
@@ -132,7 +134,8 @@ void MelonDsDs::HandleInput(melonDS::NDS& nds, InputState& inputState, ScreenLay
     if (inputState.CycleLayoutPressed()) {
         // If the user wants to change the active screen layout...
         screenLayout.NextLayout(); // ...update the screen layout to the next in the sequence.
-        retro::debug("Switched to screen layout {} of {}", screenLayout.LayoutIndex() + 1, screenLayout.NumberOfLayouts());
+        retro::debug("Switched to screen layout {} of {} ({})", screenLayout.LayoutIndex() + 1, screenLayout.NumberOfLayouts(), screenLayout.Layout());
+        // Add 1 to the index because we present the layout index as 1-based to the user.
     }
 }
 
@@ -251,6 +254,7 @@ glm::uvec2 MelonDsDs::InputState::ConsoleTouchCoordinates(const ScreenLayoutData
 
     switch (layout.Layout()) {
         case ScreenLayout::HybridBottom:
+        case ScreenLayout::FlippedHybridBottom:
             if (layout.HybridSmallScreenLayout() == HybridSideScreenDisplay::One) {
                 // If the touch screen is only shown in the hybrid-screen position...
                 clampedTouch = clamp(hybridTouchPosition, ivec2(0), NDS_SCREEN_SIZE<int> - 1);
@@ -347,4 +351,14 @@ ivec2 MelonDsDs::InputState::TouchPosition() const noexcept {
     }
 
     return pointerUpdateTimestamp > joystickTimestamp ? pointerTouchPosition : joystickCursorPosition;
+}
+
+void melonDS::Platform::Addon_RumbleStart(melonDS::u32 len, void* userdata)
+{
+    // TODO: Implement with RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE
+}
+
+void melonDS::Platform::Addon_RumbleStop(void* userdata)
+{
+    // TODO: Implement with RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE
 }

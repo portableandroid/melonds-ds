@@ -20,6 +20,10 @@ project("melonDS DS"
     LANGUAGES C CXX)
 
 message(STATUS "Configuring a ${CMAKE_BUILD_TYPE} build.")
+if (APPLE)
+    message(STATUS "CMAKE_OSX_ARCHITECTURES: ${CMAKE_OSX_ARCHITECTURES}")
+endif ()
+message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 include(CheckSymbolExists)
@@ -83,12 +87,12 @@ include(cmake/ConfigureDependencies.cmake)
 set(MELONDSDS_NAME "${CMAKE_PROJECT_NAME}")
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     set(MELONDSDS_VERSION "${CMAKE_PROJECT_VERSION}")
-else()
-    if (GIT_STATE)
-        set(MELONDSDS_VERSION "${GIT_STATE}-${CMAKE_BUILD_TYPE}-upstream-${MELONDS_REPOSITORY_TAG}")
-    else ()
-        set(MELONDSDS_VERSION "v${CMAKE_PROJECT_VERSION}-nogit-${CMAKE_BUILD_TYPE}-upstream-${MELONDS_REPOSITORY_TAG}")
-    endif()
+elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+    set(MELONDSDS_VERSION "${CMAKE_PROJECT_VERSION} (RelWithDebInfo)")
+elseif (GIT_STATE)
+    set(MELONDSDS_VERSION "${GIT_STATE}-${CMAKE_BUILD_TYPE}-upstream-${MELONDS_REPOSITORY_TAG}")
+else ()
+    set(MELONDSDS_VERSION "v${CMAKE_PROJECT_VERSION}-nogit-${CMAKE_BUILD_TYPE}-upstream-${MELONDS_REPOSITORY_TAG}")
 endif()
 
 message(STATUS "${MELONDSDS_NAME} version string: '${MELONDSDS_VERSION}'")
@@ -99,6 +103,9 @@ configure_file("${CMAKE_SOURCE_DIR}/melondsds_libretro.info.in" "${CMAKE_CURRENT
 option(ENABLE_THREADED_RENDERER "Enable the threaded software renderer." ON)
 option(BUILD_TESTING "Build test suite." OFF)
 include(CTest)
+
+# iOS/tvOS want the library built SHARED, other platforms have been happy with MODULE
+option(BUILD_AS_SHARED_LIBRARY "Allow for both linking and loading" OFF)
 
 add_subdirectory(src/libretro)
 include(cmake/GenerateAttributions.cmake)

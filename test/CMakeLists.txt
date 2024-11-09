@@ -1,11 +1,21 @@
-find_package(Python 3.11 REQUIRED)
+option(MELONDSDS_INTERNAL_VENV "Use an internal Python virtual environment for the test suite; disable if using your own." ON)
 
-# FindPython sets "Python_EXECUTABLE", but FindPythonModules wants "PYTHON_EXECUTABLE" (note the caps)
-set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
+find_package(Python3 3.11 REQUIRED)
 
-find_package(PythonModules COMPONENTS libretro PIL)
+if (MELONDSDS_INTERNAL_VENV)
+    include(../cmake/CreatePythonVenv.cmake)
+    CreatePythonVenv("${CMAKE_BINARY_DIR}" "venv" VENV "${CMAKE_CURRENT_LIST_DIR}/requirements.txt")
+    set(PYTHON_EXECUTABLE "${VENV}")
+else()
+    # FindPython sets "Python3_EXECUTABLE", but FindPythonModules wants "PYTHON_EXECUTABLE" (note the caps)
+    set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+endif()
 
-# TODO: Make this required once libretro.py is on PyPI
+message(STATUS "Using external Python environment at ${PYTHON_EXECUTABLE}")
+
+# NOTE: These are modules, not package names (i.e. these names get imported as-is)
+find_package(PythonModules REQUIRED COMPONENTS libretro PIL)
+
 if (PythonModules_libretro_PATH)
     message(STATUS "Found libretro.py: ${PythonModules_libretro_PATH}")
 endif()
@@ -13,7 +23,6 @@ endif()
 if (PythonModules_PIL_PATH)
     message(STATUS "Found PIL (aka Pillow): ${PythonModules_PIL_PATH}")
 endif()
-## TODO: Write a requirements.txt for all test dependencies
 
 if (NOT NDS_ROM)
     message(WARNING "NDS_ROM must be set to the path of an NDS ROM")
@@ -82,6 +91,8 @@ cmake_path(GET DSI_NAND FILENAME DSI_NAND_NAME)
 
 include(CMakePrintHelpers)
 
+set(DEFAULT_TIMEOUT 60) # In seconds
+
 function(add_python_test)
     set(options
         ARM7_BIOS
@@ -133,7 +144,7 @@ function(add_python_test)
 
     add_test(
         NAME "${RETRO_NAME}"
-        COMMAND ${Python_EXECUTABLE}
+        COMMAND ${PYTHON_EXECUTABLE}
         -m "${RETRO_TEST_MODULE}"
         "$<TARGET_FILE:melondsds_libretro>"
         "${NDS_CONTENT}"
@@ -251,13 +262,14 @@ function(add_python_test)
     if (RETRO_TIMEOUT)
         set_tests_properties("${RETRO_NAME}" PROPERTIES TIMEOUT "${RETRO_TIMEOUT}")
     else()
-        set_tests_properties("${RETRO_NAME}" PROPERTIES TIMEOUT 10)
+        set_tests_properties("${RETRO_NAME}" PROPERTIES TIMEOUT "${DEFAULT_TIMEOUT}")
     endif()
 endfunction()
 
 FetchContent_Declare(
     godmode9i
     URL "https://github.com/DS-Homebrew/GodMode9i/releases/download/v3.4.1/GodMode9i.7z"
+    DOWNLOAD_EXTRACT_TIMESTAMP true
 )
 
 FetchContent_GetProperties(godmode9i)
@@ -265,11 +277,6 @@ FetchContent_MakeAvailable(godmode9i)
 set(GODMODE9I_ROM "${godmode9i_SOURCE_DIR}/GodMode9i.nds")
 
 set(MICRECORD_NDS "${CMAKE_CURRENT_SOURCE_DIR}/nds/micrecord.nds")
-
-# TODO: Write the following test capabilities:
-# - Copying a system file to a particular location
-# - Select a GBA ROM
-# - Select a GBA save file
 
 # TODO: Write the following tests:
 
@@ -282,8 +289,10 @@ set(MICRECORD_NDS "${CMAKE_CURRENT_SOURCE_DIR}/nds/micrecord.nds")
 
 include(cmake/Basics.cmake)
 include(cmake/Booting.cmake)
+include(cmake/Cheats.cmake)
 include(cmake/Errors.cmake)
 include(cmake/Firmware.cmake)
 include(cmake/Reset.cmake)
+include(cmake/Screen.cmake)
 include(cmake/TestHomebrewSDCards.cmake)
 include(cmake/Video.cmake)

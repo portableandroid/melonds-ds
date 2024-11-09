@@ -49,7 +49,7 @@
 #include <SPI_Firmware.h>
 #include <FreeBIOS.h>
 #include <file/config_file.h>
-#include <LAN_PCap.h>
+#include <Net_PCap.h>
 
 #include "config/constants.hpp"
 #include "config/definitions.hpp"
@@ -62,11 +62,11 @@
 #include "input.hpp"
 #include "libretro.hpp"
 #include "microphone.hpp"
+#include "net/pcap.hpp"
 #include "retro/dirent.hpp"
 #include "screenlayout.hpp"
 #include "std/span.hpp"
 #include "tracy.hpp"
-#include "pcap.hpp"
 
 #ifdef interface
 #undef interface
@@ -87,7 +87,6 @@ using std::string;
 using std::string_view;
 using std::unique_ptr;
 using std::vector;
-using LAN_PCap::AdapterData;
 
 constexpr unsigned AUTO_SDCARD_SIZE = 0;
 constexpr uint64_t DEFAULT_SDCARD_SIZE = 4096ull * 1024ull * 1024ull; // 4GB
@@ -796,45 +795,6 @@ struct AdapterOption {
     string value;
     string label;
 };
-
-
-static vector<string_view> fmt_flags(const pcap_if_t& interface) noexcept {
-    fmt::memory_buffer buffer;
-
-    vector<string_view> flagNames;
-    if (interface.flags & PCAP_IF_LOOPBACK) {
-        flagNames.emplace_back("Loopback");
-    }
-
-    if (interface.flags & PCAP_IF_UP) {
-        flagNames.emplace_back("Up");
-    }
-
-    if (interface.flags & PCAP_IF_RUNNING) {
-        flagNames.emplace_back("Running");
-    }
-
-    if (interface.flags & PCAP_IF_WIRELESS) {
-        flagNames.emplace_back("Wireless");
-    }
-
-    switch (interface.flags & PCAP_IF_CONNECTION_STATUS) {
-        case PCAP_IF_CONNECTION_STATUS_UNKNOWN:
-            flagNames.emplace_back("UnknownStatus");
-            break;
-        case PCAP_IF_CONNECTION_STATUS_CONNECTED:
-            flagNames.emplace_back("Connected");
-            break;
-        case PCAP_IF_CONNECTION_STATUS_DISCONNECTED:
-            flagNames.emplace_back("Disconnected");
-            break;
-        case PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE:
-            flagNames.emplace_back("ConnectionStatusNotApplicable");
-            break;
-    }
-
-    return flagNames;
-}
 #endif
 
 // If I make an option depend on the game (e.g. different defaults for different games),
@@ -931,18 +891,19 @@ bool MelonDsDs::RegisterCoreOptions() noexcept {
         retro_assert(firmwarePathDsiOption->default_value != nullptr);
     }
 
-    bool pcapOk;
-    {
-        ZoneScopedN("LAN_PCap::Init");
-        pcapOk = LAN_PCap::Init(false);
-    }
+
+    // TODO: Pass in the LibPCap instance created by NetState
+    // TODO: Create a DynamicOption class, pass in instances of that
 
 #ifdef HAVE_NETWORKING_DIRECT_MODE
     // holds on to strings used in dynamic options until we finish submitting the options to the frontend
+    // DO NOT move this into a deeper scope, or else the strings that the options point to will be destroyed
+    // ReSharper disable once CppTooWideScope
     vector<AdapterOption> adapters;
-    if (pcapOk) {
+    if (std::optional<LibPCap> pcap = LibPCap::New(); pcap) {
         ZoneScopedN("MelonDsDs::config::set_core_options::init_adapter_options");
         // If we successfully initialized PCap and got some adapters...
+        vector<AdapterData> availableAdapters = pcap->GetAdapters();
         retro_core_option_v2_definition* wifiAdapterOption = find_if(definitions.begin(), definitions.end(), [](const auto& def) {
             return string_is_equal(def.key, MelonDsDs::config::network::DIRECT_NETWORK_INTERFACE);
         });
@@ -950,12 +911,9 @@ bool MelonDsDs::RegisterCoreOptions() noexcept {
 
         // Zero all option values except for the first (Automatic)
         memset(wifiAdapterOption->values + 1, 0, sizeof(retro_core_option_value) * (RETRO_NUM_CORE_OPTION_VALUES_MAX - 1));
-        int length = std::min<int>(LAN_PCap::NumAdapters, RETRO_NUM_CORE_OPTION_VALUES_MAX - 1);
-        for (int i = 0; i < length; ++i) {
-            const LAN_PCap::AdapterData& adapter = LAN_PCap::Adapters[i];
-            if (IsAdapterAcceptable(adapter)) {
-                // If this interface would potentially work...
-
+        for (const AdapterData& adapter : availableAdapters) {
+            if (IsAdapterAcceptable(adapter) && adapters.size() < RETRO_NUM_CORE_OPTION_VALUES_MAX - 1) {
+                // If this interface would potentially work, and we haven't added the max...
                 string mac = fmt::format("{:02x}", fmt::join(adapter.MAC, ":"));
                 retro::debug(
                     "Found a \"{}\" ({}) interface with ID {} at {} bound to {} ({})",
@@ -964,8 +922,9 @@ bool MelonDsDs::RegisterCoreOptions() noexcept {
                     adapter.DeviceName,
                     mac,
                     fmt::join(adapter.IP_v4, "."),
-                    fmt::join(fmt_flags(*static_cast<const pcap_if_t*>(adapter.Internal)), "|")
+                    static_cast<FormattedPCapFlags>(adapter.Flags)
                 );
+
                 string label = fmt::format("{} ({})", string_is_empty(adapter.FriendlyName) ? adapter.DeviceName : adapter.FriendlyName, mac);
                 adapters.emplace_back(AdapterOption {
                     .adapter = adapter,

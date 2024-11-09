@@ -28,6 +28,11 @@
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
+#ifdef HAVE_TRACY
+#include "tracy.hpp"
+#include "tracy/opengl.hpp"
+#endif
+
 namespace MelonDsDs {
     using glm::vec2;
     using glm::vec4;
@@ -69,7 +74,7 @@ namespace MelonDsDs {
         bool _openGlDebugAvailable = false;
         bool _needsRefresh = true;
         bool _contextInitialized = false;
-        std::array<GLuint, 3> shader {};
+        GLuint _screenProgram = 0;
         GLuint screen_framebuffer_texture = 0;
         std::array<Vertex, 18> screen_vertices {};
         unsigned vertexCount = 0;
@@ -85,6 +90,10 @@ namespace MelonDsDs {
         } GL_ShaderConfig {};
 
         GLuint ubo = 0;
+
+#ifdef HAVE_TRACY
+        std::optional<OpenGlTracyCapture> _tracyCapture;
+#endif
     };
 }
 

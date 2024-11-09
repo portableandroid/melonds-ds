@@ -54,6 +54,7 @@ namespace MelonDsDs {
 
     enum class MicInputMode {
         None,
+        Blow,
         HostMic,
         WhiteNoise,
     };
@@ -127,9 +128,11 @@ namespace MelonDsDs {
         BottomOnly = 5,
         HybridTop = 6,
         HybridBottom = 7,
-        TurnLeft = 8,
-        TurnRight = 9,
-        UpsideDown = 10,
+        FlippedHybridTop = 8,
+        FlippedHybridBottom = 9,
+        TurnLeft = 10,
+        TurnRight = 11,
+        UpsideDown = 12,
     };
 
     enum class HybridSideScreenDisplay {
@@ -156,6 +159,10 @@ namespace MelonDsDs {
         Relative,
         Absolute,
     };
+
+    enum class FormattedGLEnum {};
+
+    enum class FormattedPCapFlags : uint32_t {};
 }
 
 #endif // MELONDSDS_CONFIG_TYPES_HPP

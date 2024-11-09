@@ -33,7 +33,6 @@
 #include <retro_assert.h>
 #include <retro_miscellaneous.h>
 
-#include <frontend/FrontendUtil.h>
 #undef isnan
 #include <fmt/format.h>
 
@@ -100,10 +99,13 @@ PUBLIC_SYMBOL bool retro_load_game(const struct retro_game_info *info) {
 
 PUBLIC_SYMBOL void retro_get_system_av_info(struct retro_system_av_info *info) {
     ZoneScopedN(TracyFunction);
+    retro::debug(TracyFunction);
 
     retro_assert(info != nullptr);
 
     *info = MelonDsDs::Core.GetSystemAvInfo();
+
+    retro::debug("retro_get_system_av_info finished");
 }
 
 PUBLIC_SYMBOL [[gnu::hot]] void retro_run(void) {
@@ -200,12 +202,14 @@ PUBLIC_SYMBOL void retro_reset(void) {
 }
 
 PUBLIC_SYMBOL void retro_cheat_reset(void) {
-    retro::debug("retro_cheat_reset()");
+    ZoneScopedN(TracyFunction);
+
+    MelonDsDs::Core.CheatReset();
 }
 
 PUBLIC_SYMBOL void retro_cheat_set(unsigned index, bool enabled, const char *code) {
     // Cheat codes are small programs, so we can't exactly turn them off (that would be undoing them)
-    ZoneScopedN("retro_cheat_set");
+    ZoneScopedN(TracyFunction);
 
     MelonDsDs::Core.CheatSet(index, enabled, code);
 }
@@ -293,43 +297,31 @@ extern "C" bool MelonDsDs::UpdateOptionVisibility() noexcept {
     return Core.UpdateOptionVisibility();
 }
 
-bool Platform::LAN_Init() {
-    ZoneScopedN(TracyFunction);
-
-    return MelonDsDs::Core.LanInit();
-}
-
-void Platform::LAN_DeInit() {
-    ZoneScopedN(TracyFunction);
-
-    MelonDsDs::Core.LanDeinit();
-}
-
-int Platform::LAN_SendPacket(u8* data, int len) {
+int Platform::Net_SendPacket(u8* data, int len, void*) {
     ZoneScopedN(TracyFunction);
 
     return MelonDsDs::Core.LanSendPacket(std::span((std::byte*)data, len));
 }
 
-int Platform::LAN_RecvPacket(u8* data) {
+int Platform::Net_RecvPacket(u8* data, void*) {
     ZoneScopedN(TracyFunction);
 
     return MelonDsDs::Core.LanRecvPacket(data);
 }
 
-void Platform::WriteNDSSave(const u8 *savedata, u32 savelen, u32 writeoffset, u32 writelen) {
+void Platform::WriteNDSSave(const u8 *savedata, u32 savelen, u32 writeoffset, u32 writelen, void*) {
     ZoneScopedN(TracyFunction);
 
     MelonDsDs::Core.WriteNdsSave(span((const std::byte*)savedata, savelen), writeoffset, writelen);
 }
 
-void Platform::WriteGBASave(const u8 *savedata, u32 savelen, u32 writeoffset, u32 writelen) {
+void Platform::WriteGBASave(const u8 *savedata, u32 savelen, u32 writeoffset, u32 writelen, void*) {
     ZoneScopedN(TracyFunction);
 
     MelonDsDs::Core.WriteGbaSave(span((const std::byte*)savedata, savelen), writeoffset, writelen);
 }
 
-void Platform::WriteFirmware(const Firmware& firmware, u32 writeoffset, u32 writelen) {
+void Platform::WriteFirmware(const Firmware& firmware, u32 writeoffset, u32 writelen, void*) {
     ZoneScopedN(TracyFunction);
 
     MelonDsDs::Core.WriteFirmware(firmware, writeoffset, writelen);

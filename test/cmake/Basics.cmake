@@ -120,6 +120,7 @@ add_python_test(
 add_python_test(
     NAME "Core applies cheats"
     TEST_MODULE basics.core_applies_cheats
+    CORE_OPTION "melonds_boot_mode=direct"
     CONTENT "${NDS_ROM}"
 )
 
@@ -130,9 +131,7 @@ add_python_test(
     NAME "Core rotates the screen"
     TEST_MODULE basics.core_rotates_screen
     NDS_SYSFILES
-    DISABLED
-) # TODO: Implement this test
-# TODO: Set the screen layout sequence
+)
 
 add_python_test(
     NAME "Core can send messages (API V0)"
@@ -323,6 +322,14 @@ add_python_test(
     TEST_MODULE basics.core_accepts_microphone_input
     CONTENT "${MICRECORD_NDS}"
     CORE_OPTION melonds_boot_mode=direct
+)
+
+add_python_test(
+    NAME "Core accepts microphone input with Blow mode"
+    TEST_MODULE basics.core_accepts_microphone_input
+    CONTENT "${MICRECORD_NDS}"
+    CORE_OPTION melonds_boot_mode=direct
+    CORE_OPTION melonds_mic_input=blow
 )
 
 add_python_test(

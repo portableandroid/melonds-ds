@@ -153,6 +153,44 @@ extern "C" const uint8_t* melondsds_gba_sram() {
     return console->GetGBACart()->GetSaveMemory();
 }
 
+extern "C" int melondsds_analog_cursor_x() {
+    using namespace MelonDsDs;
+    return Core.GetInputState().JoystickTouchPosition().x;
+}
+
+extern "C" int melondsds_analog_cursor_y() {
+    using namespace MelonDsDs;
+    return Core.GetInputState().JoystickTouchPosition().y;
+}
+
+extern "C" int melondsds_screen_layout() {
+    using namespace MelonDsDs;
+    return static_cast<int>(Core.GetScreenLayoutData().Layout());
+}
+
+extern "C" bool melondsds_is_opengl_renderer() {
+    using namespace MelonDsDs;
+    auto mode = Core.GetRenderMode();
+
+    return mode && *mode == RenderMode::OpenGl;
+}
+
+extern "C" bool melondsds_is_software_renderer() {
+    using namespace MelonDsDs;
+    auto mode = Core.GetRenderMode();
+
+    return mode && *mode == RenderMode::Software;
+}
+
+extern "C" unsigned melondsds_num_cheats() {
+    using namespace MelonDsDs;
+    const auto *console = Core.GetConsole();
+    if (!console)
+        return 0;
+
+    return console->AREngine.Cheats.size();
+}
+
 extern "C" retro_proc_address_t MelonDsDs::GetRetroProcAddress(const char* sym) noexcept {
     if (string_is_equal(sym, "libretropy_add_integers"))
         return reinterpret_cast<retro_proc_address_t>(libretropy_add_integers);
@@ -207,6 +245,24 @@ extern "C" retro_proc_address_t MelonDsDs::GetRetroProcAddress(const char* sym) 
 
     if (string_is_equal(sym, "melondsds_gba_sram"))
         return reinterpret_cast<retro_proc_address_t>(melondsds_gba_sram);
+
+    if (string_is_equal(sym, "melondsds_analog_cursor_x"))
+        return reinterpret_cast<retro_proc_address_t>(melondsds_analog_cursor_x);
+
+    if (string_is_equal(sym, "melondsds_analog_cursor_y"))
+        return reinterpret_cast<retro_proc_address_t>(melondsds_analog_cursor_y);
+
+    if (string_is_equal(sym, "melondsds_screen_layout"))
+        return reinterpret_cast<retro_proc_address_t>(melondsds_screen_layout);
+
+    if (string_is_equal(sym, "melondsds_is_opengl_renderer"))
+        return reinterpret_cast<retro_proc_address_t>(melondsds_is_opengl_renderer);
+
+    if (string_is_equal(sym, "melondsds_is_software_renderer"))
+        return reinterpret_cast<retro_proc_address_t>(melondsds_is_software_renderer);
+
+    if (string_is_equal(sym, "melondsds_num_cheats"))
+        return reinterpret_cast<retro_proc_address_t>(melondsds_num_cheats);
 
     return nullptr;
 }

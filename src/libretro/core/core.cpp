@@ -142,6 +142,7 @@ void MelonDsDs::CoreState::Run() noexcept {
 
     if (retro::is_variable_updated()) [[unlikely]] {
         // If any settings have changed...
+        retro::debug("At least one setting has changed; updating now");
         ParseConfig(Config);
         ApplyConfig(Config);
         UpdateConsole(Config, nds);
@@ -250,6 +251,8 @@ void MelonDsDs::CoreState::Reset() {
         memcpy(gbaSram.data(), Console->GetGBASave(), Console->GetGBASaveLength());
     }
 
+    std::vector<melonDS::ARCode> cheats = std::move(Console->AREngine.Cheats);
+
     Console = nullptr;
     melonDS::NDS::Current = nullptr;
     Console = CreateConsole(
@@ -268,6 +271,8 @@ void MelonDsDs::CoreState::Reset() {
     if (!gbaSram.empty()) {
         Console->SetGBASave(gbaSram.data(), gbaSram.size());
     }
+
+    Console->AREngine.Cheats = std::move(cheats);
 
     _ndsSramInstalled = false;
     InitFlushFirmwareTask();
@@ -335,6 +340,8 @@ bool MelonDsDs::CoreState::InitErrorScreen(const config_exception& e) noexcept {
     retro::task::reset();
     _messageScreen = std::make_unique<error::ErrorScreen>(e);
     Config.SetConfiguredRenderer(RenderMode::Software);
+    _renderState.Apply(Config);
+    _screenLayout.Apply(Config, _renderState);
     _screenLayout.Update();
     retro::error("Error screen initialized");
     return true;
@@ -342,8 +349,6 @@ bool MelonDsDs::CoreState::InitErrorScreen(const config_exception& e) noexcept {
 
 void MelonDsDs::CoreState::RenderErrorScreen() noexcept {
     assert(_messageScreen != nullptr);
-
-    _screenLayout.Update();
     _renderState.Render(*_messageScreen, Config, _screenLayout);
 }
 
@@ -434,6 +439,7 @@ void MelonDsDs::CoreState::StartConsole() {
 
     retro_assert(Console != nullptr); // This function should only be called if the console is initialized
 
+    retro::debug(TracyFunction);
     _renderState.UpdateRenderer(Config, *Console);
 
     {
@@ -508,7 +514,6 @@ bool MelonDsDs::CoreState::LoadGame(unsigned type, std::span<const retro_game_in
         _optionVisibility.Update();
     }
     ApplyConfig(Config);
-    // Must initialize the render state if using OpenGL (so the function pointers can be loaded
 
     _syncClock = Config.StartTimeMode() == StartTimeMode::Sync;
     retro_assert(Console == nullptr);
@@ -652,6 +657,7 @@ void MelonDsDs::CoreState::ApplyConfig(const CoreConfig& config) noexcept {
     _screenLayout.Apply(config, _renderState);
     _inputState.Apply(config);
     _micState.Apply(config);
+    _netState.Apply(config);
     _screenLayout.SetDirty();
 
     if (oldMicInputMode != MicInputMode::HostMic && config.MicInputMode() == MicInputMode::HostMic) {
@@ -672,8 +678,14 @@ void MelonDsDs::CoreState::ApplyConfig(const CoreConfig& config) noexcept {
         // If this isn't the first time we're setting the renderer...
         if (oldRenderer != newRenderer) {
             // If we're switching renderer modes...
+            retro::debug("Switching render mode from {} to {}", *oldRenderer, *newRenderer);
             retro_system_av_info av = GetSystemAvInfo(*newRenderer);
-            retro::set_system_av_info(av);
+            if (retro::set_system_av_info(av)) {
+                retro::info("Updated system AV info for new renderer");
+            }
+            else {
+                retro::warn("Failed to update system AV info for new renderer");
+            }
         }
 
         _renderState.UpdateRenderer(Config, *Console);
@@ -888,15 +900,14 @@ std::byte* MelonDsDs::CoreState::GetMemoryData(unsigned id) noexcept {
     }
 }
 
-size_t MelonDsDs::CoreState::GetMemorySize(unsigned id) noexcept {
+size_t MelonDsDs::CoreState::GetMemorySize(unsigned id) const noexcept {
     if (_messageScreen)
         return 0;
 
     switch (id) {
         case RETRO_MEMORY_SYSTEM_RAM: {
             retro_assert(Console != nullptr);
-            auto consoleType = static_cast<ConsoleType>(Console->ConsoleType);
-            switch (consoleType) {
+            switch (auto consoleType = static_cast<ConsoleType>(Console->ConsoleType)) {
                 default:
                     retro::warn("Unknown console type {}, returning memory size of 4MB.", consoleType);
                     [[fallthrough]];
@@ -914,17 +925,25 @@ size_t MelonDsDs::CoreState::GetMemorySize(unsigned id) noexcept {
     }
 }
 
+void MelonDsDs::CoreState::CheatReset() noexcept
+{
+    ZoneScopedN(TracyFunction);
+    retro::debug("retro_cheat_reset()\n");
+
+    if (Console)
+    {
+        Console->AREngine.Cheats.clear();
+    }
+}
+
 void MelonDsDs::CoreState::CheatSet(unsigned index, bool enabled, std::string_view code) noexcept {
-    // Cheat codes are small programs, so we can't exactly turn them off (that would be undoing them)
     ZoneScopedN(TracyFunction);
     retro::debug("retro_cheat_set({}, {}, {})\n", index, enabled, code);
     if (code.empty())
         return;
 
-    if (!enabled) {
-        retro::set_warn_message("Action Replay codes can't be undone, restart the game to remove their effects.");
+    if (!Console)
         return;
-    }
 
     if (!regex_match(code.data(), _cheatSyntax)) {
         // If we're trying to activate this cheat code, but it's not valid...
@@ -933,7 +952,7 @@ void MelonDsDs::CoreState::CheatSet(unsigned index, bool enabled, std::string_vi
     }
 
     melonDS::ARCode curcode {
-        .Name = "",
+        .Name = string(code),
         .Enabled = enabled,
         .Code = {}
     };
@@ -949,6 +968,12 @@ void MelonDsDs::CoreState::CheatSet(unsigned index, bool enabled, std::string_vi
         curcode.Code.push_back(token);
     }
 
-    retro_assert(Console != nullptr);
-    Console->AREngine.RunCheat(curcode);
+    if (index < Console->AREngine.Cheats.size())
+    { // If we're updating the state of a cheat that already exists...
+        Console->AREngine.Cheats[index] = std::move(curcode);
+    }
+    else
+    { // If we're adding a new cheat...
+        Console->AREngine.Cheats.push_back(std::move(curcode));
+    }
 }

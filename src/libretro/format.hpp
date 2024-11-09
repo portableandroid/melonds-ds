@@ -19,6 +19,7 @@
 #define MELONDS_DS_FORMAT_HPP
 
 #include <string_view>
+#include <vector>
 
 #undef isinf
 #undef isnan
@@ -27,6 +28,7 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
+#include <fmt/std.h>
 #include <SPI_Firmware.h>
 #include <DSi_NAND.h>
 #include <Platform.h>
@@ -34,8 +36,19 @@
 #include <gfx/scaler/scaler.h>
 
 #include "config/config.hpp"
+#include "config/types.hpp"
 
 namespace fmt {
+    template<>
+    struct formatter<MelonDsDs::FormattedGLEnum> : formatter<std::string_view> {
+        auto format(MelonDsDs::FormattedGLEnum e, format_context& ctx) const -> decltype(ctx.out());
+    };
+
+    template<>
+    struct formatter<MelonDsDs::FormattedPCapFlags> : formatter<std::vector<string_view>> {
+        auto format(MelonDsDs::FormattedPCapFlags e, format_context& ctx) const -> decltype(ctx.out());
+    };
+
     template<>
     struct formatter<MelonDsDs::BiosType> : formatter<std::string_view> {
         auto format(MelonDsDs::BiosType c, format_context& ctx) const -> decltype(ctx.out());
@@ -84,6 +97,16 @@ namespace fmt {
     template<>
     struct formatter<melonDS::Platform::FileMode> : formatter<std::vector<std::string_view>> {
         auto format(melonDS::Platform::FileMode mode, format_context& ctx) const -> decltype(ctx.out());
+    };
+
+    template<>
+    struct formatter<MelonDsDs::ScreenLayout> : formatter<std::string_view> {
+        auto format(MelonDsDs::ScreenLayout layout, format_context& ctx) const -> decltype(ctx.out());
+    };
+
+    template<>
+    struct formatter<MelonDsDs::RenderMode> : formatter<std::string_view> {
+        auto format(MelonDsDs::RenderMode mode, format_context& ctx) const -> decltype(ctx.out());
     };
 }
 

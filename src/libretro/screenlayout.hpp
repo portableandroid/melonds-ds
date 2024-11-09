@@ -77,6 +77,8 @@ namespace MelonDsDs {
         switch (layout) {
             case ScreenLayout::HybridTop:
             case ScreenLayout::HybridBottom:
+            case ScreenLayout::FlippedHybridTop:
+            case ScreenLayout::FlippedHybridBottom:
                 return true;
             default:
                 return false;
@@ -318,7 +320,13 @@ namespace MelonDsDs {
 
     constexpr unsigned MaxSoftwareRenderedHeight() noexcept {
         using namespace config::screen;
-        return NDS_SCREEN_HEIGHT * 2 + MAX_SCREEN_GAP;
+        return std::max({
+            // Top/Bottom or Bottom/Top layout
+            NDS_SCREEN_HEIGHT * 2 + MAX_SCREEN_GAP,
+
+            // Hybrid layout
+            NDS_SCREEN_HEIGHT * MAX_HYBRID_RATIO,
+        });
     }
 
     constexpr unsigned MaxOpenGlRenderedWidth() noexcept {

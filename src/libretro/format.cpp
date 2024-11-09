@@ -15,10 +15,109 @@
 */
 
 #include "format.hpp"
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+#include "PlatformOGLPrivate.h"
+#endif
+
+#ifdef HAVE_NETWORKING_DIRECT_MODE
+#include "net/pcap.hpp"
+#endif
 
 using namespace melonDS;
 using FirmwareConsoleType = Firmware::FirmwareConsoleType;
 using DSi_NAND::ConsoleRegion;
+
+#if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
+auto fmt::formatter<MelonDsDs::FormattedGLEnum>::format(MelonDsDs::FormattedGLEnum e, format_context& ctx) const -> decltype(ctx.out()) {
+    string_view name = "<unknown>";
+    switch ((int)e) {
+        case GL_NO_ERROR:
+            name = "GL_NO_ERROR";
+            break;
+        case GL_INVALID_VALUE:
+            name = "GL_INVALID_VALUE";
+            break;
+        case GL_INVALID_OPERATION:
+            name = "GL_INVALID_OPERATION";
+            break;
+        case GL_INVALID_FRAMEBUFFER_OPERATION:
+            name = "GL_INVALID_FRAMEBUFFER_OPERATION";
+            break;
+        case GL_OUT_OF_MEMORY:
+            name = "GL_OUT_OF_MEMORY";
+            break;
+        case GL_INVALID_ENUM:
+            name = "GL_INVALID_ENUM";
+            break;
+        case GL_FRAMEBUFFER_COMPLETE:
+            name = "GL_FRAMEBUFFER_COMPLETE";
+            break;
+        case GL_FRAMEBUFFER_UNDEFINED:
+            name = "GL_FRAMEBUFFER_UNDEFINED";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            name = "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            name = "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+            name = "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+            name = "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER";
+            break;
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+            name = "GL_FRAMEBUFFER_UNSUPPORTED";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+            name = "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+            name = "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
+            break;
+    }
+    return formatter<string_view>::format(name, ctx);
+}
+#endif
+
+auto fmt::formatter<MelonDsDs::FormattedPCapFlags>::format(MelonDsDs::FormattedPCapFlags e, format_context& ctx) const -> decltype(ctx.out()) {
+    auto flags = static_cast<uint32_t>(e);
+
+    std::vector<string_view> flagNames;
+    if (flags & PCAP_IF_LOOPBACK) {
+        flagNames.emplace_back("Loopback");
+    }
+
+    if (flags & PCAP_IF_UP) {
+        flagNames.emplace_back("Up");
+    }
+
+    if (flags & PCAP_IF_RUNNING) {
+        flagNames.emplace_back("Running");
+    }
+
+    if (flags & PCAP_IF_WIRELESS) {
+        flagNames.emplace_back("Wireless");
+    }
+
+    switch (flags & PCAP_IF_CONNECTION_STATUS) {
+    case PCAP_IF_CONNECTION_STATUS_UNKNOWN:
+        flagNames.emplace_back("UnknownStatus");
+        break;
+    case PCAP_IF_CONNECTION_STATUS_CONNECTED:
+        flagNames.emplace_back("Connected");
+        break;
+    case PCAP_IF_CONNECTION_STATUS_DISCONNECTED:
+        flagNames.emplace_back("Disconnected");
+        break;
+    case PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE:
+        flagNames.emplace_back("ConnectionStatusNotApplicable");
+        break;
+    }
+
+    return formatter<decltype(flagNames)>::format(flagNames, ctx);
+}
 
 auto fmt::formatter<MelonDsDs::BiosType>::format(MelonDsDs::BiosType c, format_context& ctx) const -> decltype(ctx.out()) {
     string_view name = "unknown";
@@ -344,4 +443,73 @@ auto fmt::formatter<Platform::FileMode>::format(Platform::FileMode mode, format_
         bits.emplace_back("Text");
 
     return formatter<std::vector<std::string_view>>::format(bits, ctx);
+}
+
+auto fmt::formatter<MelonDsDs::ScreenLayout>::format(MelonDsDs::ScreenLayout layout, format_context& ctx) const -> decltype(ctx.out()) {
+    string_view name;
+
+    switch (layout) {
+        case MelonDsDs::ScreenLayout::TopBottom:
+            name = "TopBottom";
+            break;
+        case MelonDsDs::ScreenLayout::BottomTop:
+            name = "BottomTop";
+            break;
+        case MelonDsDs::ScreenLayout::LeftRight:
+            name = "LeftRight";
+            break;
+        case MelonDsDs::ScreenLayout::RightLeft:
+            name = "RightLeft";
+            break;
+        case MelonDsDs::ScreenLayout::TopOnly:
+            name = "TopOnly";
+            break;
+        case MelonDsDs::ScreenLayout::BottomOnly:
+            name = "BottomOnly";
+            break;
+        case MelonDsDs::ScreenLayout::HybridTop:
+            name = "HybridTop";
+            break;
+        case MelonDsDs::ScreenLayout::HybridBottom:
+            name = "HybridBottom";
+            break;
+        case MelonDsDs::ScreenLayout::FlippedHybridTop:
+            name = "FlippedHybridTop";
+        break;
+        case MelonDsDs::ScreenLayout::FlippedHybridBottom:
+            name = "FlippedHybridBottom";
+        break;
+        case MelonDsDs::ScreenLayout::TurnLeft:
+            name = "TurnLeft";
+            break;
+        case MelonDsDs::ScreenLayout::TurnRight:
+            name = "TurnRight";
+            break;
+        case MelonDsDs::ScreenLayout::UpsideDown:
+            name = "UpsideDown";
+            break;
+        default:
+            name = "<unknown>";
+            break;
+    }
+
+    return formatter<string_view>::format(name, ctx);
+}
+
+auto fmt::formatter<MelonDsDs::RenderMode>::format(MelonDsDs::RenderMode mode, format_context& ctx) const -> decltype(ctx.out()) {
+    string_view name;
+
+    switch (mode) {
+        case MelonDsDs::RenderMode::Software:
+            name = "Software";
+            break;
+        case MelonDsDs::RenderMode::OpenGl:
+            name = "OpenGL";
+            break;
+        default:
+            name = "<unknown>";
+            break;
+    }
+
+    return formatter<string_view>::format(name, ctx);
 }

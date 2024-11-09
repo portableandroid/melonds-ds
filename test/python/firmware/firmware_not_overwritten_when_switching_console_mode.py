@@ -5,9 +5,9 @@ from libretro import Session
 import prelude
 
 nds_firmware_path = os.environ["NDS_FIRMWARE"]
-nds_firmware_basename = os.path.basename(nds_firmware_path)
+nds_firmware_basename = os.path.basename(nds_firmware_path).encode()
 dsi_firmware_path = os.environ["DSI_FIRMWARE"]
-dsi_firmware_basename = os.path.basename(dsi_firmware_path)
+dsi_firmware_basename = os.path.basename(dsi_firmware_path).encode()
 
 with open(nds_firmware_path, "rb") as firmware_file:
     nds_firmware = firmware_file.read()
@@ -20,7 +20,7 @@ assert nds_firmware != dsi_firmware, "DS and DSi firmware are the same"
 session: Session
 with prelude.session() as session:
     for i in range(30):
-        session.core.run()
+        session.run()
 
     match prelude.options[b'melonds_console_mode']:
         case 'ds' | b'ds':
@@ -32,10 +32,10 @@ with prelude.session() as session:
         case _ as mode:
             raise ValueError(f"Unknown console mode {mode}")
 
-    session.core.reset()
+    session.reset()
 
     for i in range(30):
-        session.core.run()
+        session.run()
 
 nds_firmware_path_local = os.path.join(prelude.core_system_dir, nds_firmware_basename)
 dsi_firmware_path_local = os.path.join(prelude.core_system_dir, dsi_firmware_basename)

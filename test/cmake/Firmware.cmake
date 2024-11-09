@@ -7,6 +7,19 @@ add_python_test(
     CORE_OPTION "melonds_sysfile_mode=builtin"
 )
 
+### Validating Firmware (see https://github.com/JesseTG/melonds-ds/issues/183)
+add_python_test(
+    NAME "Core doesn't list wrongly-sized files as NDS firmware"
+    TEST_MODULE firmware.core_rejects_wrong_sized_nds_firmware
+    NDS_SYSFILES
+)
+
+add_python_test(
+    NAME "Core doesn't list files with an invalid identifier as NDS firmware"
+    TEST_MODULE firmware.core_rejects_invalid_nds_firmware_id
+    NDS_SYSFILES
+)
+
 ### Ensuring firmware is not overwritten
 
 # See https://github.com/JesseTG/melonds-ds/issues/59
@@ -55,4 +68,12 @@ add_python_test(
     CORE_OPTION "melonds_console_mode=dsi"
     CORE_OPTION "melonds_boot_directly=false"
     CORE_OPTION "melonds_sysfile_mode=native"
+)
+
+add_python_test(
+    NAME "Core loads Wi-fi settings from wfcsettings.bin if using built-in firmware"
+    TEST_MODULE firmware.core_loads_wfcsettings
+    CONTENT "${NDS_ROM}"
+    CORE_OPTION "melonds_console_mode=ds"
+    CORE_OPTION "melonds_sysfile_mode=builtin"
 )

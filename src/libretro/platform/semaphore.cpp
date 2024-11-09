@@ -24,9 +24,7 @@ using namespace melonDS;
 using Platform::Semaphore;
 
 struct Platform::Semaphore {
-    std::counting_semaphore<> semaphore;
-
-    Semaphore() : semaphore(0) {}
+    std::counting_semaphore<> semaphore {0};
 };
 
 Semaphore *Platform::Semaphore_Create()
@@ -39,6 +37,16 @@ void Platform::Semaphore_Reset(Semaphore *sema)
 {
     ZoneScopedN(TracyFunction);
     while (sema->semaphore.try_acquire());
+}
+
+bool Platform::Semaphore_TryWait(Semaphore* sema, int timeout_ms)
+{
+    ZoneScopedN(TracyFunction);
+
+    if (!timeout_ms)
+        return sema->semaphore.try_acquire();
+
+    return sema->semaphore.try_acquire_for(std::chrono::milliseconds(timeout_ms));
 }
 
 void Platform::Semaphore_Post(Semaphore *sema, int count)

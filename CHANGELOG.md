@@ -4,14 +4,107 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0),
 and this project roughly adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Bugfixes and minor improvements will increment the patch version.
+New features will increment the minor version.
+Breaking changes (**except for savestates**) will increment the major version;
+a design goal is to avoid a 2.x release for as long as possible.
 
-## [Unreleased]
+## [1.1.8] - 2024-10-18
+
+Thanks to **@oddballparty** and a private sponsor for their generosity!
+
+### Added
+
+- Added `RelWithDebInfo` builds that include Tracy support.
+  These will be distributed on GitHub for all supported platforms,
+  starting with this release.
+- Added `Debug` builds that include debugging information and limited optimizations.
+  Useful for debugging crashes and other issues,
+  not recommended for general gameplay.
+- Added a contributor's guide at `CONTRIBUTING.md`.
+  [#107](https://github.com/JesseTG/melonds-ds/issues/107)
+- Added guidelines for reporting security vulnerabilities at `SECURITY.md`.
+- Added right-handed versions of the hybrid screen layouts.
+  [#38](https://github.com/JesseTG/melonds-ds/issues/38)
+  **Thanks for [#229](https://github.com/JesseTG/melonds-ds/pull/229), @roblar91!**
+
+### Changed
+
+- Moved build instructions from `README.md` to the new `CONTRIBUTING.md`.
+
+### Fixed
+
+- Fixed encrypted NDS ROMs failing to load without any feedback;
+  loading one without using the native BIOS will now display an error message.
+  [#228](https://github.com/JesseTG/melonds-ds/issues/228)
+- Fixed Blow mode for emulated microphone input not being implemented
+  despite being available in the core options.
+  [#187](https://github.com/JesseTG/melonds-ds/issues/187)
+
+## [1.1.7] - 2024-08-20
+
+### Fixed
+
+- Fixed a build error on iOS on the libretro infrastructure.
+
+## [1.1.6] - 2024-08-20
+
+### Changed
+
+- Updated melonDS to commit [824eb37](https://github.com/melonDS-emu/melonDS/tree/824eb37).
+- **BREAKING:** The savestate format has changed.
+  Savestates from previous versions are incompatible with this one.
+  Please save your progress in-game before updating.
+
+### Fixed
+
+- Fixed cheat codes not being applied to the game. [#196](https://github.com/JesseTG/melonds-ds/issues/196)
+- Fixed changes to the built-in firmware's settings and data
+  not being persisted to disk.
+  [#211](https://github.com/JesseTG/melonds-ds/issues/211)
+- Fixed the built-in firmware's Wi-fi settings
+  not being loaded from the correct file.
+  [#205](https://github.com/JesseTG/melonds-ds/issues/205)
+
+## [1.1.5] - 2024-07-25
+
+### Fixed
+
+- Fixed system files from other cores
+  being incorrectly treated as NDS firmware images,
+  which resulted in strange behavior when such a file was chosen.
+  [#183](https://github.com/JesseTG/melonds-ds/issues/183)
+
+## [1.1.4] - 2024-07-08
+
+### Changed
+
+- Updated the "DSi NAND Path" core option description to clarify the role of the no$gba footer.
+
+### Fixed
+
+- Fixed some log entries not being output with a newline.
+- Fixed a crash when using a hybrid screen layout with a screen ratio of 3:1.
+- Fixed DSi NAND images not being recognized if they lacked a no$gba footer
+  despite having equivalent data at offset 0xFF800. [#195](https://github.com/JesseTG/melonds-ds/issues/195)
+- Fixed the screen being rendered when using the OpenGL renderer while the emulated lid is closed,
+  which caused flickering in some games. [#214](https://github.com/JesseTG/melonds-ds/issues/214)
+
+## [1.1.3] - 2024-06-14
+
+### Fixed
+
+- Fixed a crash that would occur when attempting to use the OpenGL renderer on some GPUs. [#203](https://github.com/JesseTG/melonds-ds/issues/203)
+
+## [1.1.2] - 2024-06-12
 
 ### Fixed
 
 - Fixed a bug where native BIOS images would be used
   when the core was supposed to fall back to built-in system files.
 - Fixed a bug where GBA SRAM wouldn't be loaded.
+- Fixed a bug where the core would crash when trying to load the error screen
+  while using the OpenGL renderer.
 
 ## [1.1.1] - 2024-02-29
 

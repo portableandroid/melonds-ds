@@ -129,6 +129,8 @@ namespace MelonDsDs {
         if (value == config::values::BOTTOM) return ScreenLayout::BottomOnly;
         if (value == config::values::HYBRID_TOP) return ScreenLayout::HybridTop;
         if (value == config::values::HYBRID_BOTTOM) return ScreenLayout::HybridBottom;
+        if (value == config::values::FLIPPED_HYBRID_TOP) return ScreenLayout::FlippedHybridTop;
+        if (value == config::values::FLIPPED_HYBRID_BOTTOM) return ScreenLayout::FlippedHybridBottom;
         if (value == config::values::ROTATE_LEFT) return ScreenLayout::TurnLeft;
         if (value == config::values::ROTATE_RIGHT) return ScreenLayout::TurnRight;
         if (value == config::values::UPSIDE_DOWN) return ScreenLayout::UpsideDown;
@@ -160,6 +162,7 @@ namespace MelonDsDs {
     constexpr std::optional<MicInputMode> ParseMicInputMode(std::string_view value) noexcept {
         if (value == config::values::MICROPHONE) return MicInputMode::HostMic;
         if (value == config::values::NOISE) return MicInputMode::WhiteNoise;
+        if (value == config::values::BLOW) return MicInputMode::Blow;
         if (value == config::values::SILENCE) return MicInputMode::None;
 
         return std::nullopt;
